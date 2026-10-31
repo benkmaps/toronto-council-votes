@@ -88,32 +88,37 @@ for (const file of files) {
   const members = [...memberNames.keys()].sort((a, b) => memberNames.get(a).localeCompare(memberNames.get(b)))
   const mIdx = new Map(members.map((m, i) => [m, i]))
 
-  // 1. rebuild individual votes from consecutive rows
+  // 1. rebuild individual votes. Rows are usually grouped by vote, but some exports are sorted by
+  // member instead, so group by key; the n-th time a member appears under a key it belongs to the
+  // n-th vote with that key (identical repeated votes on an item).
   const votes = []
-  let cur = null
+  const byKey = new Map() // key -> votes sharing that key, in order
+  const occurrence = new Map() // `${key}|${name}` -> times this member was seen under key
   for (const r of rows) {
     const key = [r.Committee, r['Agenda Item #'], r['Date/Time'], r['Motion Type'], r['Vote Description'], r.Result].join('|')
     const name = `${r['First Name']} ${r['Last Name']}`.trim()
-    if (!cur || cur.key !== key || cur.seen.has(name)) {
+    const occ = occurrence.get(`${key}|${name}`) ?? 0
+    occurrence.set(`${key}|${name}`, occ + 1)
+    let group = byKey.get(key)
+    if (!group) byKey.set(key, (group = []))
+    let cur = group[occ]
+    if (!cur) {
       const parsed = parseDateTime(r['Date/Time'])
-      const date = parsed.date
-      const time = parsed.time
       cur = {
         key,
-        seen: new Set(),
         body: r.Committee,
         ref: r['Agenda Item #'],
         title: r['Agenda Item Title'],
         motion: r['Motion Type'],
         desc: r['Vote Description'] ?? '',
         result: r.Result,
-        date,
-        time,
+        date: parsed.date,
+        time: parsed.time,
         codes: new Array(members.length).fill('.'),
       }
+      group[occ] = cur
       votes.push(cur)
     }
-    cur.seen.add(name)
     cur.codes[mIdx.get(name)] = CODE[r.Vote] ?? '?'
   }
 
