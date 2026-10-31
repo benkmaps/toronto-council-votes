@@ -47,9 +47,18 @@ term, about 60 requests, a few minutes. Five files named `tmmis-council-2006-201
 to Downloads. Items that already have a recorded council vote are only used to line meetings up;
 the rest are added to the site as items with no recorded vote.
 
+## 1c. Download the committee and community council item lists
+
+Committees and community councils also have items that were decided without a recorded vote.
+Press **Download committee item lists** in the same panel (it needs a `refs` file made with
+`export-refs.mjs`, which now includes the list of bodies). It pages through each body's items for the
+term, a few minutes in total, and saves `tmmis-committees-<term>.json`. As with the council list,
+items that already have a recorded vote are only used to line meetings up, and the long text
+fields are shortened to keep the files small.
+
 ## 2. Add the data to the site
 
-1. Move all the `tmmis-items-*.json` and `tmmis-council-*.json` files from Downloads into
+1. Move all the `tmmis-items-*.json`, `tmmis-council-*.json` and `tmmis-committees-*.json` files from Downloads into
    `app/tmmis/parts/`.
 2. From the `app` folder run:
 
@@ -86,9 +95,9 @@ fetches what is new:
    If you pulled them yourself, run `git pull` first if the Action has also committed.
 2. `npm run tmmis:new` writes `tmmis/refs-new.json`: just the items in the latest term that haven't
    been downloaded yet.
-3. In the browser (steps 1 and 1b above), choose `refs-new.json`, press **Start** (usually a minute
-   or two), then **Download council item list** (about 12 requests, it re-downloads the whole
-   term's list so new no-vote items and updated statuses come in).
+3. In the browser (steps 1 to 1c above), choose `refs-new.json`, press **Start** (usually a minute
+   or two), then **Download council item list** and **Download committee item lists** (they
+   re-download the whole term's lists so new no-vote items and updated statuses come in).
 4. Put the new `tmmis-items-*.json` and `tmmis-council-*.json` files in `tmmis/parts/`
    (remove the older parts first, or keep them; both work).
 5. `npm run tmmis:build`, then commit `app/public/data` and `app/tmmis/*.json` and push. The deploy

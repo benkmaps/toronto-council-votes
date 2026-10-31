@@ -182,6 +182,13 @@ const STATUS_WORDING: Record<string, [string, ItemColor]> = {
   POSTPONE: ['Postponed', 'orange'],
   POSTPONED: ['Postponed', 'orange'],
   WITHDRAWN: ['Withdrawn', 'gray'],
+  WITHDRAW: ['Withdrawn', 'gray'],
+  WO_RECS: ['Without recommendations', 'violet'],
+  NO_ACTN: ['No action', 'gray'],
+  NOQUORUM: ['No quorum', 'gray'],
+  DEFERIND: ['Deferred indefinitely', 'orange'],
+  NOTADOPT: ['Not adopted', 'red'],
+  OOORDER: ['Out of order', 'gray'],
 }
 
 type ItemColor = 'teal' | 'red' | 'orange' | 'violet' | 'gray'
@@ -205,7 +212,7 @@ export function itemOutcome(item: Item): ItemOutcome {
     const s = STATUS_WORDING[(item.st ?? '').trim().toUpperCase()]
     if (s) return { label: s[0], color: s[1] }
     const st = (item.st ?? '').trim()
-    return st ? { label: st.charAt(0) + st.slice(1).toLowerCase(), color: 'gray' } : { label: 'Adopted', color: 'teal' }
+    return st ? { label: (st.charAt(0) + st.slice(1).toLowerCase()).replace(/_/g, ' '), color: 'gray' } : { label: 'Adopted', color: 'teal' }
   }
   // a failed vote to waive referral means the item went to committee
   if (item.votes.some((v) => v.r !== 'C' && /^waive referral/i.test(v.m))) return { label: 'Referred', color: 'orange' }

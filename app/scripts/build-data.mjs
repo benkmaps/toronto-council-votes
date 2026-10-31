@@ -41,6 +41,9 @@ const history = fs.existsSync(historyFile) ? JSON.parse(fs.readFileSync(historyF
 // council item list from TMMIS incl. items with no recorded vote (tmmis/council.json); optional
 const councilFile = path.resolve(here, '../tmmis/council.json')
 const councilList = fs.existsSync(councilFile) ? JSON.parse(fs.readFileSync(councilFile, 'utf8')) : {}
+// committee / community council item lists from TMMIS (tmmis/committees.json); optional
+const committeesFile = path.resolve(here, '../tmmis/committees.json')
+const committeeList = fs.existsSync(committeesFile) ? JSON.parse(fs.readFileSync(committeesFile, 'utf8')) : {}
 const norm = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
 fs.mkdirSync(path.join(outDir, 'motions'), { recursive: true })
 
@@ -286,6 +289,37 @@ for (const file of files) {
     }
     console.log(' ', term, 'added', added, 'council items without a recorded vote')
   }
+  // 2d. the same for committees and community councils: items that had no recorded vote
+  const extraCodes = {} // item code letters -> body name, for bodies whose votes did not reveal them
+  for (const [bodyName, list] of Object.entries(committeeList[term] ?? {})) {
+    const meetings = bodies.get(bodyName)
+    if (!meetings) continue // the body has no recorded votes this term, so it is not in the data
+    const midOf = new Map()
+    for (const m of meetings) {
+      const mid = mode([...m.items.keys()].map((r) => list.meeting[r]).filter(Boolean))
+      if (mid && !midOf.has(mid)) midOf.set(mid, m)
+    }
+    let added = 0
+    for (const n of list.novote) {
+      const label = n.y && n.cd && n.n ? `${n.y}.${n.cd}${n.n}` : `Meeting ${n.n ?? n.mid}`
+      let m = midOf.get(n.mid) ?? meetings.find((x) => x.label === label)
+      if (!m) {
+        m = { id: `${bodyName}|${label}`, label, dates: new Set(), refs: [], items: new Map() }
+        const at = n.d ? meetings.findIndex((x) => [...x.dates].sort()[0] > n.d) : -1
+        if (at >= 0) meetings.splice(at, 0, m)
+        else meetings.push(m)
+      }
+      midOf.set(n.mid, m)
+      if (n.d) m.dates.add(n.d)
+      if (!m.items.has(n.r)) {
+        m.items.set(n.r, { ref: n.r, title: n.t, votes: [], st: n.st, nv: 1 })
+        m.refs.push(n.r)
+        added++
+      }
+      if (n.cd) extraCodes[n.cd] ??= bodyName
+    }
+    console.log(' ', term, bodyName.trim(), 'added', added, 'items without a recorded vote')
+  }
   merged.forEach((m, i) => {
     m.id = `c${i + 1}`
     m.label = `Meeting ${i + 1}`
@@ -303,6 +337,7 @@ for (const file of files) {
   const codes = Object.fromEntries(
     Object.entries(codeVotes).map(([c, o]) => [c, Object.entries(o).sort((a, b) => b[1] - a[1])[0][0]]),
   )
+  for (const [c, name] of Object.entries(extraCodes)) codes[c] ??= name
   Object.assign(codes, {
     RM: 'Routine Matters',
     IA: 'Administrative Inquiry',
