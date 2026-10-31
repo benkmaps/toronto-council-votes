@@ -160,7 +160,7 @@ const REFERRAL: [RegExp, string][] = [
 
 /** Colour for an item-level result: orange for a referral/deferral, purple for receiving or noting and filing the item (when carried), otherwise green/red. */
 export const resultColor = (v: Vote): 'orange' | 'violet' | 'teal' | 'red' =>
-  v.r !== 'C' ? 'red' : /^(receive item|take note and file)/i.test(v.m) ? 'violet' : REFERRAL.some(([re]) => re.test(v.m)) ? 'orange' : 'teal'
+  v.r !== 'C' ? 'red' : /^(receive item|take note and file)/i.test(v.m) ? 'violet' : REFERRAL.some(([re]) => re.test(v.m)) || /^without recommendations/i.test(v.m) ? 'orange' : 'teal'
 
 /** "Carried 25–1", or "Deferral lost 5–20" / "Referral carried 22–3" for referral, deferral and receive votes. */
 export function voteSummary(v: Vote): string {
@@ -180,7 +180,7 @@ const ITEM_WORDING: [RegExp, string, string][] = [
   [/^defer item/i, 'Deferred', 'Lost'],
   [/^take note and file/i, 'Noted and filed', 'Lost'],
   [/^(introduce and pass|interim control by-law)/i, 'Passed', 'Not passed'],
-  [/^without recommendations/i, 'Without recommendations', 'Lost'],
+  [/^without recommendations/i, 'Without recs', 'Lost'],
   [/^withdraw an item/i, 'Withdrawn', 'Lost'],
   [/^petition filed/i, 'Petition filed', 'Lost'],
 ]
@@ -196,7 +196,7 @@ const STATUS_WORDING: Record<string, [string, ItemColor]> = {
   POSTPONED: ['Postponed', 'orange'],
   WITHDRAWN: ['Withdrawn', 'gray'],
   WITHDRAW: ['Withdrawn', 'gray'],
-  WO_RECS: ['Without recommendations', 'violet'],
+  WO_RECS: ['Without recs', 'orange'],
   NO_ACTN: ['No action', 'gray'],
   NOQUORUM: ['No quorum', 'gray'],
   DEFERIND: ['Deferred indefinitely', 'orange'],
