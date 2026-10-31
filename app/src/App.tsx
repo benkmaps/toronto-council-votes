@@ -31,6 +31,7 @@ import { TMMIS_HOME, fmtDateRange, groupItems, loadIndex, loadTerm, mainVote, me
 import { ItemCard } from './components/ItemCard'
 import { MemberRecord } from './components/MemberRecord'
 import { ItemDrawer } from './components/ItemDrawer'
+import { SECTION_SCROLL_MARGIN, SectionNav, sectionId } from './components/SectionNav'
 
 const PAGE = 40
 
@@ -366,8 +367,9 @@ export default function App() {
                     item references, so a few items near the edges may be placed in a neighbouring meeting. The year shown is when most of the items originated.
                   </Text>
                 )}
+                {groups.length > 1 && <SectionNav groups={groups} nameOf={(code) => groupName(code, data.codes)} />}
                 {groups.map((g) => (
-                  <Stack key={g.key} gap="sm">
+                  <Stack key={g.key} gap={6} id={sectionId(g)} style={{ scrollMarginTop: SECTION_SCROLL_MARGIN }}>
                     {(groups.length > 1) && (
                       <Group gap="xs" mt="sm" wrap="nowrap">
                         <Badge variant="filled" color="indigo" radius="sm" tt="none" style={{ flexShrink: 0 }}>

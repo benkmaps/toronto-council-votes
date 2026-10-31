@@ -122,7 +122,7 @@ export function groupItems(items: Item[], codes: Record<string, string> = {}): I
   const num = (r: string) => r.split('.').slice(2).join('.')
   const letters = (c: string) => c.replace(/\d+$/, '')
   // TMMIS order: routine matters, administrative inquiries, committees (A-Z), community councils, city council, member motions, bills
-  const RANK: Record<string, number> = { RM: 0, AI: 1, CC: 3, MM: 4, BL: 5, ST: 5 }
+  const RANK: Record<string, number> = { RM: 0, IA: 1, AI: 1, CC: 3, MM: 4, BL: 5, ST: 5 }
   const label = (c: string) => (codes[letters(c)] ?? letters(c)).trim()
   // the four community councils sit after the committees and before city council items
   const rank = (c: string) => RANK[letters(c)] ?? (/Community Council$/.test(label(c)) ? 2.5 : 2)
@@ -155,6 +155,61 @@ export function voteSummary(v: Vote): string {
   const kind = REFERRAL.find(([re]) => re.test(v.m))
   if (kind) return `${kind[1]} ${v.r === 'C' ? 'carried' : v.r === 'T' ? 'lost (tie)' : 'lost'} ${score}`
   return `${outcomeLabel(v.r)} ${score}`
+}
+
+// wording for an item-level vote, in the style TMMIS uses for item status: [pattern, if carried, if lost]
+const ITEM_WORDING: [RegExp, string, string][] = [
+  [/^adopt (item|order paper) as amended/i, 'Adopted (amended)', 'Not adopted'],
+  [/^adopt (item|order paper|minutes)/i, 'Adopted', 'Not adopted'],
+  [/^receive item/i, 'Received', 'Lost'],
+  [/^refer item/i, 'Referred', 'Lost'],
+  [/^defer item indefinitely/i, 'Deferred indefinitely', 'Lost'],
+  [/^defer item/i, 'Deferred', 'Lost'],
+  [/^take note and file/i, 'Noted and filed', 'Lost'],
+  [/^(introduce and pass|interim control by-law)/i, 'Passed', 'Not passed'],
+  [/^without recommendations/i, 'Without recommendations', 'Lost'],
+  [/^withdraw an item/i, 'Withdrawn', 'Lost'],
+  [/^petition filed/i, 'Petition filed', 'Lost'],
+]
+
+// TMMIS item status -> how we word and colour it, for council items with no recorded vote
+const STATUS_WORDING: Record<string, [string, ItemColor]> = {
+  ADOPTED: ['Adopted', 'teal'],
+  AMENDED: ['Adopted (amended)', 'teal'],
+  RECEIVED: ['Received', 'violet'],
+  REFERRED: ['Referred', 'orange'],
+  DEFERRED: ['Deferred', 'orange'],
+  POSTPONE: ['Postponed', 'orange'],
+  POSTPONED: ['Postponed', 'orange'],
+  WITHDRAWN: ['Withdrawn', 'gray'],
+}
+
+type ItemColor = 'teal' | 'red' | 'orange' | 'violet' | 'gray'
+
+export interface ItemOutcome {
+  label: string // "Adopted", "Adopted (amended)", "Referred"...
+  color: ItemColor
+  vote?: Vote // the recorded item-level vote, if there is one (its tally is shown beside the label)
+}
+
+/** What happened to the item overall, worded the way TMMIS words item status. */
+export function itemOutcome(item: Item): ItemOutcome {
+  const main = mainVote(item)
+  if (main) {
+    const w = ITEM_WORDING.find(([re]) => re.test(main.m))
+    const label = w ? (main.r === 'C' ? w[1] : w[2]) : outcomeLabel(main.r)
+    return { label, color: resultColor(main), vote: main }
+  }
+  if (!item.votes.length) {
+    // council item with no recorded vote: use TMMIS's own status; assume adopted if it has none
+    const s = STATUS_WORDING[(item.st ?? '').trim().toUpperCase()]
+    if (s) return { label: s[0], color: s[1] }
+    const st = (item.st ?? '').trim()
+    return st ? { label: st.charAt(0) + st.slice(1).toLowerCase(), color: 'gray' } : { label: 'Adopted', color: 'teal' }
+  }
+  // voted on, but only amendments / procedural votes (or a lost referral) were recorded: assume adopted
+  const amended = item.votes.some((v) => v.r === 'C' && /^amend item/i.test(v.m))
+  return { label: amended ? 'Adopted (amended)' : 'Adopted', color: 'teal' }
 }
 
 export const outcomeLabel = (r: Vote['r']) => (r === 'C' ? 'Carried' : r === 'T' ? 'Lost (tie)' : 'Lost')

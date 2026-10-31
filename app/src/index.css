@@ -1,6 +1,7 @@
 body { margin: 0; }
 .item-card { transition: box-shadow 120ms ease; }
 .item-card:hover { box-shadow: var(--mantine-shadow-sm); }
+.item-code:hover { background: var(--mantine-color-default-hover); }
 .item-head { cursor: pointer; }
 .vote-row { cursor: pointer; }
 .vote-row:hover { background: var(--mantine-color-default-hover); }

@@ -22,14 +22,11 @@ export function MemberGrid({ vote, members, highlight }: Props) {
       <Group gap="md" mb="xs">
         {(['Y', 'N', 'A'] as const).map((k) => (
           <Group key={k} gap={6}>
-            <ThemeIcon size={18} radius="xl" color={KIND[k].color}>
-              {(() => {
-                const Icon = KIND[k].icon
-                return <Icon size={12} stroke={3} />
-              })()}
+            <ThemeIcon size={24} radius="xl" color={KIND[k].color} fz={12} fw={700}>
+              {k === 'Y' ? vote.y : k === 'N' ? vote.n : vote.a}
             </ThemeIcon>
             <Text size="xs" c="dimmed">
-              {KIND[k].label} {k === 'Y' ? vote.y : k === 'N' ? vote.n : vote.a}
+              {KIND[k].label}
             </Text>
           </Group>
         ))}

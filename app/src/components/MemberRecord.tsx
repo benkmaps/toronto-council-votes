@@ -20,7 +20,7 @@ import {
 import { IconChevronDown, IconExternalLink, IconSearch } from '@tabler/icons-react'
 import type { Item, Meeting, TermData, Vote } from '../types'
 import { MemberGrid } from './MemberGrid'
-import { fmtDateRange, groupItems, mainVote, meetingTitle, outcomeLabel, shortRef, tmmisUrl, resultColor, voteSummary } from '../data'
+import { fmtDateRange, groupItems, mainVote, meetingTitle, outcomeLabel, shortRef, tmmisUrl, itemOutcome } from '../data'
 
 type Code = 'Y' | 'N' | 'A'
 type Filter = 'all' | Code | 'dissent'
@@ -85,12 +85,6 @@ function VoteDetail({ vote: v, members, member, idx, defaultOpen }: { vote: Vote
         <Box style={{ flex: 1, minWidth: 0 }}>
           <Text size="xs" fw={600}>
             {v.m}
-            {v.t && (
-              <Text span c="dimmed" fw={400}>
-                {' '}
-                · {v.t}
-              </Text>
-            )}
           </Text>
           {v.d && (
             <Text size="xs" c="dimmed">
@@ -111,6 +105,7 @@ function VoteDetail({ vote: v, members, member, idx, defaultOpen }: { vote: Vote
 function ItemRow({ row, idx, members }: { row: Row; idx: number; members: string[] }) {
   const [open, setOpen] = useState(false)
   const { item, main, code } = row
+  const outcome = itemOutcome(item)
   return (
     <Box style={{ borderLeft: `3px solid var(--mantine-color-${KIND[code].color}-${code === 'A' ? 4 : 6})` }}>
       <Group className="mr-row" wrap="nowrap" gap="sm" py={6} px="sm" onClick={() => setOpen((o) => !o)}>
@@ -136,12 +131,12 @@ function ItemRow({ row, idx, members }: { row: Row; idx: number; members: string
           </Tooltip>
         )}
         {main ? (
-          <Text size="xs" fw={600} c={resultColor(main)} visibleFrom="sm" w={150} ta="right" style={{ flexShrink: 0 }}>
-            {voteSummary(main)}
+          <Text size="xs" fw={600} c={outcome.color} visibleFrom="sm" w={170} ta="right" style={{ flexShrink: 0 }}>
+            {outcome.label} {main.y}–{main.n}
           </Text>
         ) : (
-          <Text size="xs" c="dimmed" visibleFrom="sm" w={84} ta="right" style={{ flexShrink: 0 }} title="Only amendments or procedural votes were recorded on this item">
-            no item vote
+          <Text size="xs" c="dimmed" visibleFrom="sm" w={84} ta="right" style={{ flexShrink: 0 }} title="Assumed: no vote on the item itself was recorded">
+            {outcome.label}
           </Text>
         )}
         <IconChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0 }} />

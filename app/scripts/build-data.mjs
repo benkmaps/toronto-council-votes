@@ -291,7 +291,8 @@ for (const file of files) {
   )
   Object.assign(codes, {
     RM: 'Routine Matters',
-    AI: 'Administrative Inquiries',
+    IA: 'Administrative Inquiry',
+    DM: 'Other Deferred Matters',
     CC: 'City Council',
     MM: 'Member Motions',
     BL: 'Bills and By-laws',
