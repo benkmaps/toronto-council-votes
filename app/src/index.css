@@ -1,0 +1,21 @@
+body { margin: 0; }
+.item-card { transition: box-shadow 120ms ease; }
+.item-card:hover { box-shadow: var(--mantine-shadow-sm); }
+.item-head { cursor: pointer; }
+.vote-row { cursor: pointer; }
+.vote-row:hover { background: var(--mantine-color-default-hover); }
+.clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.mr-row { cursor: pointer; }
+.mr-row:hover, .mr-meeting:hover { background: var(--mantine-color-default-hover); }
+.mr-meeting { cursor: pointer; }
+
+@media (max-width: 47.99em) {
+  /* 16px inputs stop iOS Safari zooming the page on focus */
+  .mantine-Input-input { font-size: 16px; }
+  /* long labels like "Against result" must not push the page sideways */
+  .filter-seg { max-width: 100%; overflow-x: auto; }
+  .filter-input { min-width: 0 !important; max-width: none !important; width: 100%; flex-basis: 100% !important; }
+  .stack-sm { flex-direction: column; align-items: stretch !important; }
+  .stack-sm > * { max-width: 100% !important; width: 100%; flex-basis: auto !important; }
+}

@@ -1,0 +1,6 @@
+# raw member-per-row exports (~320 MB, one file exceeds GitHub's 100 MB limit);
+# `npm run data` regenerates app/public/data from these locally
+voting_records/
+
+# in-progress TMMIS browser downloads; the merged output is what gets used
+app/tmmis/parts/
