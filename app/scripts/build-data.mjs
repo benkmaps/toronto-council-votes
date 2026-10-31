@@ -64,7 +64,16 @@ function makeMatcher() {
   }
 }
 
-const files = fs.readdirSync(srcDir).filter((f) => f.endsWith('.json')).sort()
+// --term 2022-2026 rebuilds just that term (used for automatic updates); other terms are left as they are
+const onlyTerm = process.argv.includes('--term') ? process.argv[process.argv.indexOf('--term') + 1] : null
+const files = fs
+  .readdirSync(srcDir)
+  .filter((f) => f.endsWith('.json') && (!onlyTerm || f === `member-voting-record-${onlyTerm}.json`))
+  .sort()
+if (onlyTerm && !files.length) {
+  console.error(`No voting record file for term ${onlyTerm} in ${srcDir}`)
+  process.exit(1)
+}
 const index = []
 
 for (const file of files) {
@@ -326,5 +335,10 @@ for (const file of files) {
   console.log(term, 'votes', votes.length, 'items', total, 'bytes', fs.statSync(path.join(outDir, `${slug}.json`)).size)
 }
 
+// keep the other terms' entries when only one term was rebuilt
+const indexFile = path.join(outDir, 'index.json')
+if (onlyTerm && fs.existsSync(indexFile)) {
+  for (const e of JSON.parse(fs.readFileSync(indexFile, 'utf8'))) if (!index.some((i) => i.term === e.term)) index.push(e)
+}
 index.sort((a, b) => b.term.localeCompare(a.term))
-fs.writeFileSync(path.join(outDir, 'index.json'), JSON.stringify(index))
+fs.writeFileSync(indexFile, JSON.stringify(index))

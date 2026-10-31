@@ -8,7 +8,10 @@
     "data": "node scripts/build-data.mjs",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "votes": "node scripts/fetch-votes.mjs --build",
+    "tmmis:new": "node scripts/export-refs.mjs --new",
+    "tmmis:build": "node scripts/build-items.mjs && node scripts/build-data.mjs"
   },
   "dependencies": {
     "@mantine/core": "^9.7.4",

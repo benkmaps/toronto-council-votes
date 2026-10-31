@@ -27,7 +27,7 @@ import {
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import { IconExternalLink, IconMoon, IconSearch, IconSun } from '@tabler/icons-react'
 import type { Body, Item, Meeting, TermData, TermIndexEntry } from './types'
-import { TMMIS_HOME, fmtDateRange, groupItems, loadIndex, loadTerm, mainVote, meetingTitle, resultColor } from './data'
+import { TMMIS_HOME, fmtDateRange, groupItems, itemOutcome, loadIndex, loadTerm, meetingTitle } from './data'
 import { ItemCard } from './components/ItemCard'
 import { MemberRecord } from './components/MemberRecord'
 import { ItemDrawer } from './components/ItemDrawer'
@@ -138,22 +138,16 @@ export default function App() {
 
   const stats = useMemo(() => {
     if (!meeting) return null
-    let carried = 0
-    let votes = 0
-    // items whose overall vote was a referral / deferral (incl. indefinite) that carried
-    let referred = 0
-    let deferred = 0
-    let received = 0
-    let filed = 0
+    const tally = new Map<string, { label: string; color: string; n: number }>()
     for (const it of meeting.items) {
-      for (const v of it.votes) (votes++, v.r === 'C' && carried++)
-      const main = mainVote(it)
-      const color = main && resultColor(main)
-      if (color === 'orange') (/^refer/i.test(main!.m) ? referred++ : deferred++)
-      else if (color === 'violet') (/^take note/i.test(main!.m) ? filed++ : received++)
+      if (!showNoVote && !it.votes.length) continue
+      const { label, color } = itemOutcome(it)
+      const t = tally.get(label)
+      if (t) t.n++
+      else tally.set(label, { label, color, n: 1 })
     }
-    return { votes, carried, lost: votes - carried, referred, deferred, received, filed }
-  }, [meeting])
+    return [...tally.values()].sort((a, b) => b.n - a.n)
+  }, [meeting, showNoVote])
 
   const loadingTerm = !!term && !data
 
@@ -168,7 +162,8 @@ export default function App() {
           <Group gap="sm" wrap="nowrap">
             <Burger opened={navOpen} onClick={toggleNav} hiddenFrom="sm" display={view === 'meetings' ? undefined : 'none'} size="sm" aria-label="Toggle meetings" />
             <Title order={3} lh={1} style={{ whiteSpace: 'nowrap' }}>
-              🏛️<Text span inherit visibleFrom="sm"> Toronto Council Votes</Text>
+              <Text span inherit visibleFrom="sm">Toronto Council Votes</Text>
+              <Text span inherit hiddenFrom="sm">Council Votes</Text>
             </Title>
           </Group>
           <Group gap="xs" wrap="nowrap">
@@ -324,32 +319,11 @@ export default function App() {
                       <Badge variant="light" color="gray" size="lg">
                         {plural(meeting.items.length - (showNoVote ? 0 : noVoteCount), 'item')}
                       </Badge>
-                      <Badge variant="light" color="teal" size="lg">
-                        {stats.carried} carried
-                      </Badge>
-                      <Badge variant="light" color="red" size="lg">
-                        {stats.lost} lost
-                      </Badge>
-                      {stats.referred > 0 && (
-                        <Badge variant="light" color="orange" size="lg">
-                          {stats.referred} referred
+                      {stats.map((s) => (
+                        <Badge key={s.label} variant="light" color={s.color} size="lg">
+                          {s.n} {s.label.toLowerCase()}
                         </Badge>
-                      )}
-                      {stats.deferred > 0 && (
-                        <Badge variant="light" color="orange" size="lg">
-                          {stats.deferred} deferred
-                        </Badge>
-                      )}
-                      {stats.received > 0 && (
-                        <Badge variant="light" color="violet" size="lg">
-                          {stats.received} received
-                        </Badge>
-                      )}
-                      {stats.filed > 0 && (
-                        <Badge variant="light" color="violet" size="lg">
-                          {stats.filed} noted and filed
-                        </Badge>
-                      )}
+                      ))}
                     </Group>
                   )}
                 </Group>

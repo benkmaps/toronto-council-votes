@@ -74,3 +74,24 @@ After that:
 ## If the item list changes
 
 `node scripts/export-refs.mjs` regenerates `refs.json` from the vote data.
+
+## Keeping it up to date after each meeting
+
+New **votes** update by themselves (see the main README): a scheduled GitHub Action pulls them from
+Toronto Open Data every day. The TMMIS extras (motion text, item text, items with no recorded vote)
+still need a quick manual top-up, because TMMIS blocks servers. Doing it right after a meeting only
+fetches what is new:
+
+1. Wait for the votes to appear on the site (or run `npm run votes` in `app` to pull them yourself).
+   If you pulled them yourself, run `git pull` first if the Action has also committed.
+2. `npm run tmmis:new` writes `tmmis/refs-new.json`: just the items in the latest term that haven't
+   been downloaded yet.
+3. In the browser (steps 1 and 1b above), choose `refs-new.json`, press **Start** (usually a minute
+   or two), then **Download council item list** (about 12 requests, it re-downloads the whole
+   term's list so new no-vote items and updated statuses come in).
+4. Put the new `tmmis-items-*.json` and `tmmis-council-*.json` files in `tmmis/parts/`
+   (remove the older parts first, or keep them; both work).
+5. `npm run tmmis:build`, then commit `app/public/data` and `app/tmmis/*.json` and push. The deploy
+   workflow publishes it.
+
+The build merges with what is already there, so a top-up run never loses earlier data.

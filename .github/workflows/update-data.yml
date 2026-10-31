@@ -1,0 +1,48 @@
+name: Update council votes
+
+# Checks Toronto Open Data for new voting records every day. If there are any, it rebuilds the
+# latest term's site data, commits it, and runs the deploy workflow.
+# (Motion text, item text and items with no recorded vote come from TMMIS, which blocks
+# servers, so those are added by hand: see app/tmmis/README.md.)
+
+on:
+  schedule:
+    - cron: '23 10 * * *' # daily, 10:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write # commit the rebuilt data
+  actions: write # start the deploy workflow
+
+concurrency:
+  group: update-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: fetch
+        name: Fetch the latest votes and rebuild that term
+        run: node app/scripts/fetch-votes.mjs --build
+      - name: Commit and redeploy if the site data changed
+        if: steps.fetch.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$(git status --porcelain app/public/data)" ]; then
+            echo "Site data unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/public/data
+          git commit -m "Update council votes ($(date -u +%F))"
+          git pull --rebase
+          git push
+          # pushes made with the workflow token don't trigger other workflows, so start the deploy directly
+          gh workflow run deploy.yml

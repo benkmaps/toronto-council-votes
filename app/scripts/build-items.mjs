@@ -74,23 +74,35 @@ let total = 0
 for (const f of terms) {
   const term = f.replace('.json', '')
   const d = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8'))
-  const out = {}
+  // start from what is already there, so a top-up run with only a few new items keeps the rest
+  const itemsFile = path.join(outDir, `${term}.json`)
+  const out = fs.existsSync(itemsFile) ? JSON.parse(fs.readFileSync(itemsFile, 'utf8')) : {}
+  // details for council items that had no recorded vote. A fresh council list refreshes these, but
+  // never replaces the fuller details already kept for items that have votes. The list is newest
+  // meeting first, so the first record seen for an item is its latest.
+  const seen = new Set()
+  for (const n of council[term]?.novote ?? []) {
+    if (raw[n.r] || seen.has(n.r)) continue
+    const have = out[n.r]
+    const councilOnly = have && (have.nv || (have.m.length === 1 && have.m[0].b === 'City Council'))
+    if (have && !councilOnly) continue
+    seen.add(n.r)
+    out[n.r] = { nv: 1, t: n.t, s: n.s, r: n.rec, k: n.k ?? '', m: [{ b: 'City Council', d: n.d, n: n.n, st: n.st, x: n.x, a: '' }] }
+  }
+  // items that have votes
   for (const b of d.bodies) for (const m of b.meetings) for (const it of m.items) {
-    if (out[it.ref] || !raw[it.ref]) continue
+    if (!raw[it.ref]) continue
     const s = simplify(raw[it.ref].records)
     if (s) out[it.ref] = s
   }
-  // details for council items that had no recorded vote
-  for (const n of council[term]?.novote ?? []) {
-    out[n.r] ??= { t: n.t, s: n.s, r: n.rec, k: n.k ?? '', m: [{ b: 'City Council', d: n.d, n: n.n, st: n.st, x: n.x, a: '' }] }
-  }
-  fs.writeFileSync(path.join(outDir, `${term}.json`), JSON.stringify(out))
+  fs.writeFileSync(itemsFile, JSON.stringify(out))
   total += Object.keys(out).length
-  console.log(term, Object.keys(out).length, 'items', (fs.statSync(path.join(outDir, `${term}.json`)).size / 1e6).toFixed(1), 'MB')
+  console.log(term, Object.keys(out).length, 'items', (fs.statSync(itemsFile).size / 1e6).toFixed(1), 'MB')
 }
 
 // motions, exact vote times and meeting dates, matched to the vote data by build-data.mjs
-const history = {}
+const historyFile = path.resolve(here, '../tmmis/history.json')
+const history = fs.existsSync(historyFile) ? JSON.parse(fs.readFileSync(historyFile, 'utf8')) : {}
 let motions = 0
 for (const [ref, v] of Object.entries(raw)) {
   const dates = {}
@@ -107,13 +119,14 @@ for (const [ref, v] of Object.entries(raw)) {
   motions += ms.length
   if (ms.length || Object.keys(dates).length) history[ref] = { dates, motions: ms }
 }
-fs.writeFileSync(path.resolve(here, '../tmmis/history.json'), JSON.stringify(history))
+fs.writeFileSync(historyFile, JSON.stringify(history))
 console.log('wrote', total, 'items,', motions, 'motions for', Object.keys(history).length, 'items')
 
 // council meeting links + no-vote item list, read by build-data.mjs
-const councilOut = {}
+const councilFile = path.resolve(here, '../tmmis/council.json')
+const councilOut = fs.existsSync(councilFile) ? JSON.parse(fs.readFileSync(councilFile, 'utf8')) : {}
 for (const [term, c] of Object.entries(council)) {
   councilOut[term] = { meeting: c.meeting, meetingDate: c.meetingDate, novote: c.novote.map(({ r, t, st, mid, d }) => ({ r, t, st, mid, d })) }
 }
-fs.writeFileSync(path.resolve(here, '../tmmis/council.json'), JSON.stringify(councilOut))
-console.log('council:', Object.entries(council).map(([t, c]) => `${t} ${c.novote.length} items without a recorded vote`).join('; '))
+fs.writeFileSync(councilFile, JSON.stringify(councilOut))
+console.log('council lists in this run:', Object.entries(council).map(([t, c]) => `${t} ${c.novote.length} items without a recorded vote`).join('; '))
