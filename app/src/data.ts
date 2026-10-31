@@ -28,16 +28,29 @@ export const loadMotions = (term: string): Promise<Record<string, Motion[]> | nu
   return p
 }
 
+/** File-name form of a body's name. Must match bodySlug() in scripts/build-items.mjs. */
+export const bodySlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+/** Which file an item's details are in, within its body's folder: year and committee code, e.g. 2026.EX. */
+export const itemShardKey = (ref: string) => {
+  const [year, code = ''] = ref.split('.')
+  return `${year}.${code.replace(/\d+$/, '')}`
+}
+
 const itemCache = new Map<string, Promise<Record<string, ItemDetail> | null>>()
 
-/** Item details downloaded from TMMIS (see tmmis/README.md); null if not available for this term. */
-export const loadItemDetails = (term: string): Promise<Record<string, ItemDetail> | null> => {
-  let p = itemCache.get(term)
+/**
+ * Item details downloaded from TMMIS (see tmmis/README.md). They are split into small files, one per
+ * body, item year and committee code, so only the part you are looking at is loaded. Null if not available.
+ */
+export const loadItemDetails = (term: string, body: string, ref: string): Promise<Record<string, ItemDetail> | null> => {
+  const url = `${base}items/${term}/${bodySlug(body)}/${itemShardKey(ref)}.json`
+  let p = itemCache.get(url)
   if (!p) {
-    p = fetch(`${base}items/${term}.json`)
+    p = fetch(url)
       .then((r) => (r.ok && r.headers.get('content-type')?.includes('json') ? r.json() : null))
       .catch(() => null)
-    itemCache.set(term, p)
+    itemCache.set(url, p)
   }
   return p
 }

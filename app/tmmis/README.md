@@ -67,7 +67,8 @@ node scripts/build-items.mjs
 node scripts/build-data.mjs
 ```
 
-The first command writes the item text to `public/data/items/` and the motions to
+The first command writes the item text to `public/data/items/<term>/<body>/<year>.<CODE>.json`
+(small files, so the details pop-up only loads the part it needs) and the motions to
 `tmmis/history.json`. The second regroups the votes: it matches each vote to its motion, fills in
 exact dates and times, and writes `public/data/motions/`.
 

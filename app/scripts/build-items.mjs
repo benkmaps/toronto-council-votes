@@ -84,14 +84,66 @@ const simplify = (records) => {
 }
 
 fs.mkdirSync(outDir, { recursive: true })
+
+// Item text is written in small files, one per body, item year and committee code:
+// items/<term>/<body>/<year>.<CODE>.json (e.g. executive-committee/2026.EX.json). The app works the
+// file out from the body's name and the item code, so the slug and key rules must match
+// bodySlug() and itemShardKey() in src/data.ts.
+const itemShardKey = (ref) => {
+  const [year, code = ''] = ref.split('.')
+  return `${year}.${code.replace(/\d+$/, '')}`
+}
+const bodySlug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+/** Everything already written for a term (the old single file, or the per-body files). */
+function loadExistingItems(term) {
+  const merged = {}
+  const legacy = path.join(outDir, `${term}.json`)
+  if (fs.existsSync(legacy)) Object.assign(merged, JSON.parse(fs.readFileSync(legacy, 'utf8')))
+  const dir = path.join(outDir, term)
+  if (fs.existsSync(dir)) {
+    for (const body of fs.readdirSync(dir)) {
+      for (const f of fs.readdirSync(path.join(dir, body))) {
+        const shard = JSON.parse(fs.readFileSync(path.join(dir, body, f), 'utf8'))
+        for (const [ref, v] of Object.entries(shard)) merged[ref] ??= v
+      }
+    }
+  }
+  return merged
+}
+
+/** Write each item's text into the file for every body that considered it, replacing earlier files. */
+function writeItemShards(term, termData, items) {
+  const dir = path.join(outDir, term)
+  fs.rmSync(dir, { recursive: true, force: true })
+  fs.rmSync(path.join(outDir, `${term}.json`), { force: true }) // the old single file
+  const shards = {}
+  for (const b of termData.bodies) {
+    for (const m of b.meetings) {
+      for (const it of m.items) {
+        if (!items[it.ref]) continue
+        const key = `${bodySlug(b.name)}/${itemShardKey(it.ref)}`
+        ;(shards[key] ??= {})[it.ref] = items[it.ref]
+      }
+    }
+  }
+  let bytes = 0
+  for (const [key, shard] of Object.entries(shards)) {
+    const file = path.join(dir, `${key}.json`)
+    fs.mkdirSync(path.dirname(file), { recursive: true })
+    const json = JSON.stringify(shard)
+    fs.writeFileSync(file, json)
+    bytes += json.length
+  }
+  return { files: Object.keys(shards).length, bytes }
+}
 const terms = fs.readdirSync(dataDir).filter((f) => /^\d{4}-\d{4}\.json$/.test(f))
 let total = 0
 for (const f of terms) {
   const term = f.replace('.json', '')
   const d = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8'))
   // start from what is already there, so a top-up run with only a few new items keeps the rest
-  const itemsFile = path.join(outDir, `${term}.json`)
-  const out = fs.existsSync(itemsFile) ? JSON.parse(fs.readFileSync(itemsFile, 'utf8')) : {}
+  const out = loadExistingItems(term)
   // details for items that had no recorded vote (council, committees, community councils). A fresh
   // list refreshes these, but never replaces the fuller details already kept for items that have
   // votes. Lists are newest meeting first, so the first record seen for an item is its latest.
@@ -118,9 +170,9 @@ for (const f of terms) {
     const s = simplify(raw[it.ref].records)
     if (s) out[it.ref] = s
   }
-  fs.writeFileSync(itemsFile, JSON.stringify(out))
+  const written = writeItemShards(term, d, out)
   total += Object.keys(out).length
-  console.log(term, Object.keys(out).length, 'items', (fs.statSync(itemsFile).size / 1e6).toFixed(1), 'MB')
+  console.log(term, Object.keys(out).length, 'items in', written.files, 'files,', (written.bytes / 1e6).toFixed(1), 'MB in total')
 }
 
 // motions, exact vote times and meeting dates, matched to the vote data by build-data.mjs

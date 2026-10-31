@@ -5,7 +5,7 @@ import type { ItemDetail } from '../types'
 import { fmtDate, loadItemDetails, shortRef, tmmisUrl } from '../data'
 
 interface Props {
-  target: { ref: string; term: string; title: string } | null
+  target: { ref: string; term: string; body: string; title: string } | null
   onClose: () => void
 }
 
@@ -37,16 +37,17 @@ export function ItemDrawer({ target, onClose }: Props) {
   const [detail, setDetail] = useState<ItemDetail | null | undefined>(undefined) // undefined = loading
   const ref = target?.ref
   const term = target?.term
+  const body = target?.body
 
   useEffect(() => {
     if (!ref || !term) return
     let live = true
     setDetail(undefined)
-    loadItemDetails(term).then((all) => live && setDetail(all?.[ref] ?? null))
+    loadItemDetails(term, body ?? '', ref).then((all) => live && setDetail(all?.[ref] ?? null))
     return () => {
       live = false
     }
-  }, [ref, term])
+  }, [ref, term, body])
 
   return (
     <Drawer

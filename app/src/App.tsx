@@ -76,7 +76,7 @@ export default function App() {
   const [allTerms, setAllTerms] = useState(false)
   const [shown, setShown] = useState(PAGE)
   const [showNoVote, setShowNoVote] = useState(true)
-  const [detail, setDetail] = useState<{ ref: string; term: string; title: string } | null>(null)
+  const [detail, setDetail] = useState<{ ref: string; term: string; body: string; title: string } | null>(null)
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
 
   useEffect(() => {
@@ -298,7 +298,7 @@ export default function App() {
                     context={h.context}
                     term={h.term}
                     body={h.body}
-                    onDetails={(it) => setDetail({ ref: it.ref, term: h.term, title: it.title })}
+                    onDetails={(it) => setDetail({ ref: it.ref, term: h.term, body: h.body, title: it.title })}
                   />
                 ))}
                 {hits.length > shown && (
@@ -366,7 +366,7 @@ export default function App() {
                         who={null}
                         term={data.term}
                         body={body.name}
-                        onDetails={(i) => setDetail({ ref: i.ref, term: data.term, title: i.title })}
+                        onDetails={(i) => setDetail({ ref: i.ref, term: data.term, body: body.name, title: i.title })}
                       />
                     ))}
                   </Stack>
