@@ -150,7 +150,8 @@ for (const f of terms) {
   const seen = new Set()
   const addNoVote = (n, body) => {
     const key = `${n.r}|${body}`
-    if (raw[n.r] || seen.has(key)) return
+    // items fetched only for their motions (history-only parts) have no item records to prefer
+    if (raw[n.r]?.records?.length || seen.has(key)) return
     const have = out[n.r]
     const noVoteEntry = have && (have.nv || (have.m.length === 1 && have.m[0].b === 'City Council'))
     if (have && !noVoteEntry) return
@@ -166,7 +167,7 @@ for (const f of terms) {
   for (const [body, c] of Object.entries(committees[term] ?? {})) for (const n of c.novote) addNoVote(n, body)
   // items that have votes
   for (const b of d.bodies) for (const m of b.meetings) for (const it of m.items) {
-    if (!raw[it.ref]) continue
+    if (!raw[it.ref]?.records?.length) continue
     const s = simplify(raw[it.ref].records)
     if (s) out[it.ref] = s
   }
@@ -192,7 +193,8 @@ for (const [ref, v] of Object.entries(raw)) {
     v: m.votes.map((x) => ({ d: x.date, t: x.time, s: x.desc, ty: x.type })),
   }))
   motions += ms.length
-  if (ms.length || Object.keys(dates).length) history[ref] = { dates, motions: ms }
+  // keep an entry for every page fetched, even with no motions, so a top-up does not fetch it again
+  if (ms.length || Object.keys(dates).length || v.history) history[ref] = { dates, motions: ms }
 }
 fs.writeFileSync(historyFile, JSON.stringify(history))
 console.log('wrote', total, 'items,', motions, 'motions for', Object.keys(history).length, 'items')

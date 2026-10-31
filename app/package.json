@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "votes": "node scripts/fetch-votes.mjs --build",
     "tmmis:new": "node scripts/export-refs.mjs --new",
-    "tmmis:build": "node scripts/build-items.mjs && node scripts/build-data.mjs"
+    "tmmis:build": "node scripts/build-items.mjs && node scripts/build-data.mjs",
+    "tmmis:novote": "node scripts/export-refs.mjs --novote"
   },
   "dependencies": {
     "@mantine/core": "^9.7.4",

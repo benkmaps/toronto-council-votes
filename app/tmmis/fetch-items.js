@@ -123,6 +123,7 @@
   let refs = []
   let councilRefs = []
   let councilTerms = null
+  let historyOnly = false // refs file made with --novote: only fetch each item's history page
   let bodyRefs = null // { term: { bodyName: [refs voted there] } }
   let stop = false
   $('#tm-file').onchange = async (e) => {
@@ -132,7 +133,8 @@
       councilRefs = Array.isArray(j) ? [] : j.council
       councilTerms = Array.isArray(j) ? null : j.terms || null // null = every term
       bodyRefs = Array.isArray(j) ? null : j.bodies || null
-      say(`${refs.length.toLocaleString()} items loaded. Press <b>Start</b>.`)
+      historyOnly = !Array.isArray(j) && !!j.historyOnly
+      say(`${refs.length.toLocaleString()} items loaded${historyOnly ? ' (motions only)' : ''}. Press <b>Start</b>.`)
       $('#tm-go').disabled = false
       $('#tm-council').disabled = false
       $('#tm-committees').disabled = !bodyRefs
@@ -190,7 +192,7 @@
   }
 
   async function fetchRef(ref) {
-    const records = await request(
+    const records = historyOnly ? [] : await request(
       API,
       () => ({
         method: 'POST',
@@ -346,6 +348,9 @@
   }
   $('#tm-committees').onclick = downloadCommitteeLists
 
+  // history-only runs are saved under another name so they never overwrite the item parts
+  const partName = () => (historyOnly ? 'tmmis-motions' : 'tmmis-items')
+
   $('#tm-go').onclick = async () => {
     $('#tm-go').disabled = true
     $('#tm-file').disabled = true
@@ -364,7 +369,7 @@
         const mins = Math.round(((refs.length - i - 1) * rate) / 60000)
         say(`Item ${i + 1} of ${refs.length}<br>About ${mins} min left. Keep this tab open.`)
         if ((i + 1) % PART_SIZE === 0) {
-          download(`tmmis-items-${String(partNo++).padStart(4, '0')}.json`, part)
+          download(`${partName()}-${String(partNo++).padStart(4, '0')}.json`, part)
           part = {}
         }
         await sleep(DELAY_MS)
@@ -372,7 +377,7 @@
     } catch (err) {
       say(`<b>Stopped at item ${i}</b>: ${err.message}.<br>Your progress is saved in parts. Restart later with "Start at item #" = ${i - (i % PART_SIZE)}.`)
     }
-    if (Object.keys(part).length) download(`tmmis-items-${String(partNo).padStart(4, '0')}.json`, part)
+    if (Object.keys(part).length) download(`${partName()}-${String(partNo).padStart(4, '0')}.json`, part)
     if (!stop && i >= refs.length) say('<b>Done!</b> Move all the downloaded tmmis-items-*.json files into <code>app/tmmis/parts</code>.')
     else if (stop) say(`Stopped. Restart with "Start at item #" = ${i - (i % PART_SIZE)} (the last partial file was saved).`)
     $('#tm-go').disabled = false

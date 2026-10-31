@@ -157,7 +157,6 @@ for (const file of files) {
     })
   }
   if (Object.keys(history).length) console.log(' ', term, 'matched', matched, 'of', votes.length, 'votes to TMMIS motions,', unvoted, 'motions without a recorded vote')
-  fs.writeFileSync(path.join(outDir, 'motions', `${term}.json`), JSON.stringify(motionsOut))
 
   // 2. assign votes to meetings
   const bodies = new Map() // name -> meetings[]
@@ -346,6 +345,28 @@ for (const file of files) {
     MM: 'Member Motions',
     BL: 'Bills and By-laws',
   })
+
+  // motions for items that had no recorded vote at all (their TMMIS history pages are fetched separately);
+  // `um` on the item says how many there are, so the app knows it can be expanded
+  for (const [bodyName, meetings] of bodies) {
+    for (const m of meetings) {
+      for (const item of m.items.values()) {
+        if (!item.nv) continue
+        const list = (motionsOut[item.ref] ??= [])
+        for (const hm of history[item.ref]?.motions ?? []) {
+          if (hm.b !== bodyName.trim() && hm.b !== bodyName) continue
+          if (hm.v.length || (!hm.x && !hm.by)) continue
+          if (!list.some((x) => x.nv && x.b === hm.b && x.n === hm.n && x.ty === hm.ty && x.by === hm.by)) {
+            list.push({ n: hm.n, ty: hm.ty, by: hm.by, st: hm.st, x: hm.x, b: hm.b, nv: 1 })
+          }
+        }
+        const um = list.filter((x) => x.nv && (x.b === bodyName || x.b === bodyName.trim())).length
+        if (um) item.um = um
+        else delete item.um
+      }
+    }
+  }
+  fs.writeFileSync(path.join(outDir, 'motions', `${term}.json`), JSON.stringify(motionsOut))
 
   // 3. serialise
   const out = {

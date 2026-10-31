@@ -56,6 +56,23 @@ term, a few minutes in total, and saves `tmmis-committees-<term>.json`. As with 
 items that already have a recorded vote are only used to line meetings up, and the long text
 fields are shortened to keep the files small.
 
+## 1d. Motions for council items that had no recorded vote
+
+Some of those items still had motions, such as an amendment carried by voice. Their motions live on
+each item's history page, so this needs one more download:
+
+1. `npm run tmmis:novote` (in `app`) writes `tmmis/refs-novote.json`: the council items without a
+   recorded vote whose motions haven't been fetched yet (about 5,000 for 2022-2026).
+2. In the browser, choose `refs-novote.json` instead of `refs.json` and press **Start**. It makes one
+   request per item (about an hour) and saves `tmmis-motions-0001.json`, `0002`, ... (a different
+   name from the item parts, so nothing is overwritten).
+3. Put them in `tmmis/parts/` and run the two build commands. Items with motions get a "N motions"
+   label and can be expanded.
+
+Many items already have motions from the main download (items that had a committee vote), so this
+step only adds the rest. Committee items without a recorded vote are not covered here (most have only
+a bare "Motion to Adopt Item").
+
 ## 2. Add the data to the site
 
 1. Move all the `tmmis-items-*.json`, `tmmis-council-*.json` and `tmmis-committees-*.json` files from Downloads into

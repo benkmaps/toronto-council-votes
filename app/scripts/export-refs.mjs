@@ -9,12 +9,27 @@
 // Usage: node scripts/export-refs.mjs                 all terms   -> tmmis/refs.json
 //        node scripts/export-refs.mjs 2022-2026       one term     -> tmmis/refs-2022-2026.json
 //        node scripts/export-refs.mjs --new           latest term, only items not downloaded yet -> tmmis/refs-new.json
+//        node scripts/export-refs.mjs --novote        council items with no recorded vote that have not had their motions
+//                                                     fetched yet (history pages only) -> tmmis/refs-novote.json
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const dataDir = path.resolve(here, '../public/data')
+const wantNovote = process.argv.includes('--novote')
+if (wantNovote) {
+  const termArg = process.argv.slice(2).find((a) => /^\d{4}-\d{4}$/.test(a))
+  const council = JSON.parse(fs.readFileSync(path.resolve(here, '../tmmis/council.json'), 'utf8'))
+  const term = termArg ?? Object.keys(council).sort().at(-1)
+  const historyFile = path.resolve(here, '../tmmis/history.json')
+  const done = fs.existsSync(historyFile) ? JSON.parse(fs.readFileSync(historyFile, 'utf8')) : {}
+  const refs = [...new Set(council[term].novote.map((n) => n.r))].filter((r) => !(r in done)).sort()
+  const file = path.resolve(here, '../tmmis/refs-novote.json')
+  fs.writeFileSync(file, JSON.stringify({ items: refs, historyOnly: true }))
+  console.log(refs.length, `council items without a recorded vote (${term}) still need their motions fetched -> tmmis/refs-novote.json`)
+  process.exit(0)
+}
 const wantNew = process.argv.includes('--new')
 const termArg = process.argv.slice(2).find((a) => /^\d{4}-\d{4}$/.test(a))
 const latest = fs.readdirSync(dataDir).filter((f) => /^\d{4}-\d{4}\.json$/.test(f)).sort().at(-1)?.replace('.json', '')

@@ -136,7 +136,7 @@ export function ItemCard({ item, members, who, context, term, body, onDetails }:
   const main = mainVote(item)
   const n = item.votes.length
   const novote = n === 0
-  const expandable = !novote || unvoted.length > 0 // nothing to expand on an item with no votes
+  const expandable = !novote || (item.um ?? 0) > 0 || unvoted.length > 0 // an item with no votes needs motions to expand
   const lost = !main ? lastDisposition(item) : undefined // a referral/deferral that lost
   // no vote on the item itself (none recorded, or only amendments): assume it carried,
   // unless TMMIS says otherwise (referred, postponed, withdrawn...)
@@ -203,6 +203,11 @@ export function ItemCard({ item, members, who, context, term, body, onDetails }:
                 <IconExternalLink size={14} />
               </ActionIcon>
             </Tooltip>
+            {novote && (item.um ?? 0) > 0 && (
+              <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
+                {`${item.um} ${item.um === 1 ? 'motion' : 'motions'}`}
+              </Text>
+            )}
             {!novote && (
               <Text size="xs" c="dimmed" truncate style={{ minWidth: 0 }}>
                 {`${n} ${n === 1 ? 'recorded vote' : 'recorded votes'}${lost ? ` · ${voteSummary(lost)}` : ''}`}

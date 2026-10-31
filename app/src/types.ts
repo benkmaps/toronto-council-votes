@@ -18,6 +18,7 @@ export interface Item {
   votes: Vote[] // empty when the item had no recorded vote
   st?: string // TMMIS item status, set on items without a recorded vote
   nv?: 1 // 1 = no recorded vote (added from TMMIS)
+  um?: number // how many motions without a recorded vote it has (on items with no recorded vote)
 }
 
 export interface Meeting {
