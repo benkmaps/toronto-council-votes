@@ -163,10 +163,11 @@ export default function App() {
             <Burger opened={navOpen} onClick={toggleNav} hiddenFrom="sm" display={view === 'meetings' ? undefined : 'none'} size="sm" aria-label="Toggle meetings" />
             <Title order={3} lh={1} style={{ whiteSpace: 'nowrap' }}>
               <Text span inherit visibleFrom="sm">Toronto Council Votes</Text>
-              <Text span inherit hiddenFrom="sm">Council Votes</Text>
+              <Text span inherit visibleFrom="xs" hiddenFrom="sm">Council Votes</Text>
+              <Text span inherit hiddenFrom="xs" className="hdr-emoji">🏛️</Text>
             </Title>
           </Group>
-          <Group gap="xs" wrap="nowrap">
+          <Group gap={4} wrap="nowrap">
             <SegmentedControl
               aria-label="View"
               size={isMobile ? 'xs' : 'sm'}
@@ -188,7 +189,8 @@ export default function App() {
               allowDeselect={false}
               rightSection={isMobile ? <span /> : undefined}
               rightSectionWidth={isMobile ? 6 : undefined}
-              w={{ base: 84, sm: 150 }}
+              w={{ base: 80, '25em': 92, sm: 150 }}
+              style={{ flexShrink: 0 }}
               size={isMobile ? 'xs' : 'sm'}
               comboboxProps={{ withinPortal: true }}
             />

@@ -113,7 +113,9 @@
     '<label>Start at item # <input id="tm-start" type="number" value="0" min="0" style="width:90px"></label> ' +
     '<button id="tm-go" style="margin-left:6px" disabled>Start</button> <button id="tm-stop" disabled>Stop</button>' +
     '<div style="margin-top:10px;padding-top:8px;border-top:1px solid #ccc"><button id="tm-council" disabled>Download council item list</button>' +
-    '<div style="font-size:12px;color:#555;margin-top:4px">Step 2: items that had no recorded vote. Quick (about 60 requests).</div></div>'
+    '<div style="font-size:12px;color:#555;margin:4px 0 8px">Step 2: council items that had no recorded vote. Quick (about 60 requests).</div>' +
+    '<button id="tm-committees" disabled>Download committee item lists</button>' +
+    '<div style="font-size:12px;color:#555;margin-top:4px">Step 3: the same for committees and community councils (a few minutes).</div></div>'
   document.body.appendChild(panel)
   const $ = (id) => panel.querySelector(id)
   const say = (t) => ($('#tm-msg').innerHTML = t)
@@ -121,6 +123,7 @@
   let refs = []
   let councilRefs = []
   let councilTerms = null
+  let bodyRefs = null // { term: { bodyName: [refs voted there] } }
   let stop = false
   $('#tm-file').onchange = async (e) => {
     try {
@@ -128,9 +131,11 @@
       refs = Array.isArray(j) ? j : j.items
       councilRefs = Array.isArray(j) ? [] : j.council
       councilTerms = Array.isArray(j) ? null : j.terms || null // null = every term
+      bodyRefs = Array.isArray(j) ? null : j.bodies || null
       say(`${refs.length.toLocaleString()} items loaded. Press <b>Start</b>.`)
       $('#tm-go').disabled = false
       $('#tm-council').disabled = false
+      $('#tm-committees').disabled = !bodyRefs
     } catch {
       say('That file could not be read. Pick <code>refs.json</code>.')
     }
@@ -262,6 +267,84 @@
     $('#tm-stop').disabled = true
   }
   $('#tm-council').onclick = downloadCouncilList
+
+  // --- step 3: committee and community council items, same idea as step 2 --------------------
+  const capN = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '')
+  const normName = (s) => (s || '').replace(/\s+/g, ' ').trim()
+
+  // every item considered by one decision body; items already in the vote data keep only a meeting link
+  async function listBody(bodyId, voted, label) {
+    const list = []
+    const seen = new Set()
+    const maxPages = window.TMMIS_TEST_MAX_PAGES || Infinity
+    for (let page = 0, pages = 1; page < pages && page < maxPages && !stop; page++) {
+      say(`${label}: page ${page + 1} of ${pages}`)
+      const j = await request(
+        `/council/api/multiple/agenda-items.json?pageNumber=${page}&pageSize=500&sortOrder=meetingDate%20desc,referenceSort`,
+        () => ({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': token() },
+          body: JSON.stringify({ decisionBodyId: bodyId }),
+        }),
+        (res) => res.json(),
+      )
+      pages = j.TotalPages || 1
+      for (const r of j.Records || []) {
+        if (seen.has(r.id)) continue
+        seen.add(r.id)
+        const date = r.meetingDate ? new Date(r.meetingDate).toISOString().slice(0, 10) : null
+        if (voted.has(r.reference)) list.push({ r: r.reference, mid: r.meetingId, d: date })
+        else
+          list.push({
+            r: r.reference, mid: r.meetingId, d: date, n: r.meetingNumber, cd: r.agendaCd, y: r.termYear, st: r.itemStatus, t: r.agendaItemTitle,
+            s: capN(r.agendaItemSummary, 1500), rec: capN(r.agendaItemRecommendation, 1500), x: capN(r.decisionRecommendations, 2500), k: r.subjectTerms,
+          })
+      }
+      await sleep(500)
+    }
+    return list
+  }
+
+  async function downloadCommitteeLists() {
+    $('#tm-committees').disabled = true
+    $('#tm-council').disabled = true
+    $('#tm-go').disabled = true
+    $('#tm-stop').disabled = false
+    stop = false
+    try {
+      const bodies = await request(
+        '/council/api/multiple/common/findPostedDecisionBodiesByTerm.json',
+        () => ({ method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': token() }, body: '{}' }),
+        async (res) => (await res.json()).Records || [],
+      )
+      for (const term of Object.keys(bodyRefs).filter((t) => !councilTerms || councilTerms.includes(t))) {
+        const wanted = new Map(
+          Object.entries(bodyRefs[term])
+            .filter(([name]) => normName(name) !== 'City Council')
+            .map(([name, refs]) => [normName(name), { name, voted: new Set(refs) }]),
+        )
+        const out = {}
+        for (const b of bodies) {
+          const m = b.decisionBodyName.match(/^(.*?)\s*\((\d{4}-\d{4})\)$/)
+          if (!m || m[2] !== term) continue
+          const want = wanted.get(normName(m[1]))
+          if (!want) continue
+          out[want.name] = await listBody(b.decisionBodyId, want.voted, `${term} ${want.name}`)
+          if (stop) break
+        }
+        if (stop) break
+        download(`tmmis-committees-${term}.json`, out)
+      }
+      say(stop ? 'Stopped.' : '<b>Committee lists done!</b> Move the tmmis-committees-*.json files into <code>app/tmmis/parts</code>.')
+    } catch (err) {
+      say(`<b>Stopped</b>: ${err.message}. Wait a while and run this step again.`)
+    }
+    $('#tm-committees').disabled = false
+    $('#tm-council').disabled = false
+    $('#tm-go').disabled = false
+    $('#tm-stop').disabled = true
+  }
+  $('#tm-committees').onclick = downloadCommitteeLists
 
   $('#tm-go').onclick = async () => {
     $('#tm-go').disabled = true
