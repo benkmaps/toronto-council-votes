@@ -207,6 +207,8 @@ export function itemOutcome(item: Item): ItemOutcome {
     const st = (item.st ?? '').trim()
     return st ? { label: st.charAt(0) + st.slice(1).toLowerCase(), color: 'gray' } : { label: 'Adopted', color: 'teal' }
   }
+  // a failed vote to waive referral means the item went to committee
+  if (item.votes.some((v) => v.r !== 'C' && /^waive referral/i.test(v.m))) return { label: 'Referred', color: 'orange' }
   // voted on, but only amendments / procedural votes (or a lost referral) were recorded: assume adopted
   const amended = item.votes.some((v) => v.r === 'C' && /^amend item/i.test(v.m))
   return { label: amended ? 'Adopted (amended)' : 'Adopted', color: 'teal' }
