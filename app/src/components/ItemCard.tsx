@@ -32,11 +32,38 @@ function MyVote({ vote, members, who }: { vote: Vote; members: string[]; who: st
   )
 }
 
-function VoteRow({ vote, motion, members, who, defaultOpen }: { vote: Vote; motion?: Motion; members: string[]; who: string | null; defaultOpen: boolean }) {
+export function VoteRow({ vote, motion, members, who, defaultOpen }: { vote: Vote; motion?: Motion; members: string[]; who: string | null; defaultOpen: boolean }) {
   const [open, setOpen] = useState(defaultOpen)
+  // motion text sits beside the bar on wider screens, and spans the full row below the header on phones
+  const text = (
+    <>
+      {motion && (
+        <>
+          {(motion.n || motion.by) && (
+            <Text size="xs" c="dimmed" fw={600}>
+              {motion.n ? `Motion ${motion.n}` : 'Motion'}
+              {motion.by ? ` · moved by ${motion.by}` : ''}
+              {/re-?vote/i.test(vote.d) ? ' · Re-vote' : ''}
+            </Text>
+          )}
+          {motion.x && (
+            <Text size="sm" className={open ? undefined : 'clamp-3'} style={{ whiteSpace: 'pre-line' }}>
+              {motion.x}
+            </Text>
+          )}
+        </>
+      )}
+      {vote.d && (!motion?.x || open) && (
+        <Text size="sm" c="dimmed" className={open ? undefined : 'clamp-2'}>
+          {vote.d}
+        </Text>
+      )}
+    </>
+  )
   return (
     <Box>
-      <Group className="vote-row" wrap="nowrap" gap="sm" p="sm" onClick={() => setOpen((o) => !o)}>
+      <Box className="vote-row" p="sm" onClick={() => setOpen((o) => !o)}>
+      <Group wrap="nowrap" gap="sm">
         <Box w={4} style={{ alignSelf: 'stretch', minHeight: 36, borderRadius: 4, background: `var(--mantine-color-${outcomeColor(vote.r)}-6)`, flexShrink: 0 }} />
         <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
           <Group gap={8}>
@@ -44,33 +71,15 @@ function VoteRow({ vote, motion, members, who, defaultOpen }: { vote: Vote; moti
               {vote.m}
             </Text>
           </Group>
-          {motion && (
-            <>
-              {(motion.n || motion.by) && (
-                <Text size="xs" c="dimmed" fw={600}>
-                  {motion.n ? `Motion ${motion.n}` : 'Motion'}
-                  {motion.by ? ` · moved by ${motion.by}` : ''}
-                  {/re-?vote/i.test(vote.d) ? ' · Re-vote' : ''}
-                </Text>
-              )}
-              {motion.x && (
-                <Text size="sm" className={open ? undefined : 'clamp-3'} style={{ whiteSpace: 'pre-line' }}>
-                  {motion.x}
-                </Text>
-              )}
-            </>
-          )}
-          {vote.d && (!motion?.x || open) && (
-            <Text size="sm" c="dimmed" className={open ? undefined : 'clamp-2'}>
-              {vote.d}
-            </Text>
-          )}
+          <Text size="xs" fw={700} c={outcomeColor(vote.r)} hiddenFrom="sm">
+            {outcomeLabel(vote.r)} {vote.y}–{vote.n}
+          </Text>
+          <Stack gap={2} visibleFrom="sm">
+            {text}
+          </Stack>
         </Stack>
         <MyVote vote={vote} members={members} who={who} />
-        <Text size="xs" fw={700} c={outcomeColor(vote.r)} hiddenFrom="xs" style={{ flexShrink: 0 }}>
-          {outcomeLabel(vote.r)} {vote.y}–{vote.n}
-        </Text>
-        <Stack gap={4} align="flex-end" visibleFrom="xs" style={{ flexShrink: 0 }}>
+        <Stack gap={4} align="flex-end" visibleFrom="sm" style={{ flexShrink: 0 }}>
           <Text size="sm" fw={700} c={outcomeColor(vote.r)}>
             {outcomeLabel(vote.r)} {vote.y}–{vote.n}
           </Text>
@@ -78,6 +87,10 @@ function VoteRow({ vote, motion, members, who, defaultOpen }: { vote: Vote; moti
         </Stack>
         <IconChevronDown size={18} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0 }} />
       </Group>
+      <Stack gap={2} mt={6} hiddenFrom="sm">
+        {text}
+      </Stack>
+      </Box>
       <Collapse expanded={open}>
         <Box px="md" pb="md" pl={{ base: 'md', sm: 34 }}>
           <MemberGrid vote={vote} members={members} highlight={who} />
@@ -88,31 +101,82 @@ function VoteRow({ vote, motion, members, who, defaultOpen }: { vote: Vote; moti
 }
 
 /** A motion TMMIS lists that has no recorded vote (decided by voice, ruled redundant, withdrawn...). */
-function UnvotedRow({ motion }: { motion: Motion }) {
+export function UnvotedRow({ motion }: { motion: Motion }) {
   const [open, setOpen] = useState(false)
+  const badge = motion.st && (
+    <Badge variant="outline" color="gray" radius="sm" style={{ flexShrink: 0 }}>
+      {motion.st}
+    </Badge>
+  )
+  const text = motion.x && (
+    <Text size="sm" className={open ? undefined : 'clamp-3'} style={{ whiteSpace: 'pre-line' }}>
+      {motion.x}
+    </Text>
+  )
+  // on phones the result badge moves under the title so the motion text can span the full row
   return (
-    <Group className="vote-row" wrap="nowrap" align="flex-start" gap="sm" p="sm" onClick={() => setOpen((o) => !o)}>
-      <Box w={4} style={{ alignSelf: 'stretch', minHeight: 28, borderRadius: 4, border: '1px dashed var(--mantine-color-gray-6)', flexShrink: 0 }} />
-      <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
-        <Text fw={600} size="sm">
-          {motion.ty}
-        </Text>
-        <Text size="xs" c="dimmed" fw={600}>
-          {motion.n ? `Motion ${motion.n}` : 'Motion'}
-          {motion.by ? ` · moved by ${motion.by}` : ''}
-        </Text>
-        {motion.x && (
-          <Text size="sm" className={open ? undefined : 'clamp-3'} style={{ whiteSpace: 'pre-line' }}>
-            {motion.x}
+    <Box className="vote-row" p="sm" onClick={() => setOpen((o) => !o)}>
+      <Group wrap="nowrap" align="flex-start" gap="sm">
+        <Box w={4} style={{ alignSelf: 'stretch', minHeight: 28, borderRadius: 4, border: '1px dashed var(--mantine-color-gray-6)', flexShrink: 0 }} />
+        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+          <Text fw={600} size="sm">
+            {motion.ty}
           </Text>
-        )}
-      </Stack>
-      {motion.st && (
-        <Badge variant="outline" color="gray" radius="sm" style={{ flexShrink: 0 }}>
-          {motion.st}
-        </Badge>
+          <Text size="xs" c="dimmed" fw={600}>
+            {motion.n ? `Motion ${motion.n}` : 'Motion'}
+            {motion.by ? ` · moved by ${motion.by}` : ''}
+          </Text>
+          {badge && (
+            <Box hiddenFrom="sm" mt={2}>
+              {badge}
+            </Box>
+          )}
+          <Box visibleFrom="sm">{text}</Box>
+        </Stack>
+        <Box visibleFrom="sm">{badge}</Box>
+      </Group>
+      <Box hiddenFrom="sm" mt={6}>
+        {text}
+      </Box>
+    </Box>
+  )
+}
+
+/** Loads the motion text for an item once it is opened; `unvoted` are motions with no recorded vote. */
+export function useItemMotions(open: boolean, term: string, item: Item, body?: string) {
+  const [motions, setMotions] = useState<Motion[] | null>(null)
+  useEffect(() => {
+    if (open) loadMotions(term).then((all) => setMotions(all?.[item.ref] ?? null))
+  }, [open, term, item])
+  const unvoted = (motions ?? []).filter((m) => m.nv && (!body || m.b === body))
+  return { motions, unvoted }
+}
+
+/** The bordered box listing every vote (and un-voted motion) on an item. */
+export function ItemVotes({ item, members, who, motions, unvoted }: { item: Item; members: string[]; who: string | null; motions: Motion[] | null; unvoted: Motion[] }) {
+  const n = item.votes.length
+  return (
+    <Box
+      mx={{ base: 'xs', sm: 'md' }}
+      mb={{ base: 'xs', sm: 'md' }}
+      style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 'var(--mantine-radius-md)', background: 'var(--mantine-color-body)' }}
+    >
+      {item.votes.map((v, i) => (
+        <Box key={i} style={i > 0 ? { borderTop: '1px solid var(--mantine-color-default-border)' } : undefined}>
+          <VoteRow vote={v} motion={v.mi !== undefined ? motions?.[v.mi] : undefined} members={members} who={who} defaultOpen={n === 1} />
+        </Box>
+      ))}
+      {unvoted.length > 0 && (
+        <Box style={{ borderTop: '1px dashed var(--mantine-color-default-border)', background: 'var(--mantine-color-default-hover)' }}>
+          <Text size="xs" fw={700} tt="uppercase" c="dimmed" px="sm" pt="sm">
+            No recorded vote
+          </Text>
+          {unvoted.map((m, i) => (
+            <UnvotedRow key={i} motion={m} />
+          ))}
+        </Box>
       )}
-    </Group>
+    </Box>
   )
 }
 
@@ -128,11 +192,7 @@ interface Props {
 
 export function ItemCard({ item, members, who, context, term, body, onDetails }: Props) {
   const [open, setOpen] = useState(false)
-  const [motions, setMotions] = useState<Motion[] | null>(null)
-  useEffect(() => {
-    if (open) loadMotions(term).then((all) => setMotions(all?.[item.ref] ?? null))
-  }, [open, term, item])
-  const unvoted = (motions ?? []).filter((m) => m.nv && (!body || m.b === body))
+  const { motions, unvoted } = useItemMotions(open, term, item, body)
   const main = mainVote(item)
   const n = item.votes.length
   const novote = n === 0
@@ -238,27 +298,7 @@ export function ItemCard({ item, members, who, context, term, body, onDetails }:
         {expandable && <IconChevronDown size={20} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', marginTop: 6, flexShrink: 0 }} />}
       </Group>
       <Collapse expanded={open && expandable}>
-        <Box
-          mx={{ base: 'xs', sm: 'md' }}
-          mb={{ base: 'xs', sm: 'md' }}
-          style={{ border: '1px solid var(--mantine-color-default-border)', borderRadius: 'var(--mantine-radius-md)', background: 'var(--mantine-color-body)' }}
-        >
-          {item.votes.map((v, i) => (
-            <Box key={i} style={i > 0 ? { borderTop: '1px solid var(--mantine-color-default-border)' } : undefined}>
-              <VoteRow vote={v} motion={v.mi !== undefined ? motions?.[v.mi] : undefined} members={members} who={who} defaultOpen={n === 1} />
-            </Box>
-          ))}
-          {unvoted.length > 0 && (
-            <Box style={{ borderTop: '1px dashed var(--mantine-color-default-border)', background: 'var(--mantine-color-default-hover)' }}>
-              <Text size="xs" fw={700} tt="uppercase" c="dimmed" px="sm" pt="sm">
-                No recorded vote
-              </Text>
-              {unvoted.map((m, i) => (
-                <UnvotedRow key={i} motion={m} />
-              ))}
-            </Box>
-          )}
-        </Box>
+        <ItemVotes item={item} members={members} who={who} motions={motions} unvoted={unvoted} />
       </Collapse>
     </Paper>
   )

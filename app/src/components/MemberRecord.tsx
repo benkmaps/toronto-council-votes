@@ -17,10 +17,10 @@ import {
   Title,
   Tooltip,
 } from '@mantine/core'
-import { IconChevronDown, IconExternalLink, IconSearch } from '@tabler/icons-react'
+import { IconChevronDown, IconExternalLink, IconFileText, IconSearch } from '@tabler/icons-react'
 import type { Item, Meeting, TermData, Vote } from '../types'
-import { MemberGrid } from './MemberGrid'
-import { fmtDateRange, groupItems, mainVote, meetingTitle, outcomeLabel, shortRef, tmmisUrl, itemOutcome } from '../data'
+import { ItemVotes, useItemMotions } from './ItemCard'
+import { fmtDateRange, groupItems, mainVote, meetingTitle, shortRef, tmmisUrl, itemOutcome } from '../data'
 
 type Code = 'Y' | 'N' | 'A'
 type Filter = 'all' | Code | 'dissent'
@@ -75,95 +75,98 @@ function Chip({ code, w = 66 }: { code: Code; w?: number }) {
   )
 }
 
-function VoteDetail({ vote: v, members, member, idx, defaultOpen }: { vote: Vote; members: string[]; member: string; idx: number; defaultOpen: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
-  const c = codeOf(v, idx)
-  return (
-    <Box>
-      <Group className="mr-row" wrap="nowrap" gap="sm" align="flex-start" py={4} px={4} onClick={() => setOpen((o) => !o)}>
-        {c ? <Chip code={c} w={60} /> : <Badge variant="outline" color="gray" w={60}>n/a</Badge>}
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Text size="xs" fw={600}>
-            {v.m}
-          </Text>
-          {v.d && (
-            <Text size="xs" c="dimmed">
-              {v.d}
-            </Text>
-          )}
-        </Box>
-        <Text size="xs" fw={600} c={v.r === 'C' ? 'teal' : 'red'} style={{ flexShrink: 0 }}>
-          {outcomeLabel(v.r)} {v.y}–{v.n}
-        </Text>
-        <IconChevronDown size={14} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0, marginTop: 2 }} />
-      </Group>
-      <Collapse expanded={open}>{open && <Box pl={{ base: 8, sm: 70 }} pr={4} py={6}><MemberGrid vote={v} members={members} highlight={member} /></Box>}</Collapse>
-    </Box>
-  )
+export interface DetailTarget {
+  ref: string
+  term: string
+  body: string
+  title: string
 }
 
-function ItemRow({ row, idx, members }: { row: Row; idx: number; members: string[] }) {
+function ItemRow({ row, idx, data, bodyName, onDetails }: { row: Row; idx: number; data: TermData; bodyName: string; onDetails: (t: DetailTarget) => void }) {
   const [open, setOpen] = useState(false)
-  const { item, main, code } = row
+  const { item, code } = row
+  const { motions, unvoted } = useItemMotions(open, data.term, item, bodyName)
   const outcome = itemOutcome(item)
+  const resultBadge = (
+    <Badge color={outcome.color} variant="light" size="md" radius="sm">
+      {outcome.label}
+      {outcome.vote ? ` ${outcome.vote.y}–${outcome.vote.n}` : ''}
+    </Badge>
+  )
   return (
     <Box style={{ borderLeft: `3px solid var(--mantine-color-${KIND[code].color}-${code === 'A' ? 4 : 6})` }}>
-      <Group className="mr-row" wrap="nowrap" gap="sm" py={6} px="sm" onClick={() => setOpen((o) => !o)}>
-        <Chip code={code} />
-        <Text size="xs" ff="monospace" c="dimmed" w={64} style={{ flexShrink: 0 }} visibleFrom="xs">
-          {shortRef(item.ref)}
-        </Text>
-        <Text size="sm" truncate style={{ flex: 1, minWidth: 0 }} title={item.title}>
-          {item.title}
-        </Text>
-        {row.mixed && (
-          <Tooltip label="Voted differently across this item's votes — expand to see" withArrow>
-            <Badge size="xs" variant="outline" color="orange" style={{ flexShrink: 0 }}>
-              mixed
-            </Badge>
-          </Tooltip>
-        )}
-        {row.dissent && !row.mixed && (
-          <Tooltip label="Voted against the final result" withArrow>
-            <Badge size="xs" variant="outline" color="grape" style={{ flexShrink: 0 }}>
-              dissent
-            </Badge>
-          </Tooltip>
-        )}
-        {main ? (
-          <Text size="xs" fw={600} c={outcome.color} visibleFrom="sm" w={170} ta="right" style={{ flexShrink: 0 }}>
-            {outcome.label} {main.y}–{main.n}
+      <Group className="mr-row" wrap="nowrap" align="flex-start" gap="sm" py={8} px={{ base: 'xs', sm: 'sm' }} onClick={() => setOpen((o) => !o)}>
+        <Box pt={2} style={{ flexShrink: 0 }}>
+          <Chip code={code} w={60} />
+        </Box>
+        <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+          <Group gap={6} wrap="nowrap">
+            <Tooltip label="Open item details" withArrow>
+              <Badge
+                component="button"
+                type="button"
+                className="item-code"
+                variant="outline"
+                color="gray"
+                radius="sm"
+                ff="monospace"
+                tt="none"
+                aria-label={`Item details for ${shortRef(item.ref)}`}
+                rightSection={<IconFileText size={12} />}
+                style={{ flexShrink: 0, cursor: 'pointer' }}
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation()
+                  onDetails({ ref: item.ref, term: data.term, body: bodyName, title: item.title })
+                }}
+              >
+                {shortRef(item.ref)}
+              </Badge>
+            </Tooltip>
+            <Tooltip label="Open on TMMIS" withArrow>
+              <ActionIcon
+                component="a"
+                href={tmmisUrl(item.ref)}
+                target="_blank"
+                rel="noreferrer"
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label={`Open ${shortRef(item.ref)} on TMMIS`}
+                style={{ flexShrink: 0, marginLeft: -4 }}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              >
+                <IconExternalLink size={14} />
+              </ActionIcon>
+            </Tooltip>
+            {row.mixed && (
+              <Tooltip label="Voted differently across this item's votes — expand to see" withArrow>
+                <Badge size="xs" variant="outline" color="orange" style={{ flexShrink: 0 }}>
+                  mixed
+                </Badge>
+              </Tooltip>
+            )}
+            {row.dissent && !row.mixed && (
+              <Tooltip label="Voted against the final result" withArrow>
+                <Badge size="xs" variant="outline" color="grape" style={{ flexShrink: 0 }}>
+                  dissent
+                </Badge>
+              </Tooltip>
+            )}
+            <Box hiddenFrom="sm" ml="auto" style={{ flexShrink: 0 }}>
+              {resultBadge}
+            </Box>
+          </Group>
+          <Text size="sm" lh={1.3} className={open ? undefined : 'clamp-2'} title={item.title}>
+            {item.title}
           </Text>
-        ) : (
-          <Text size="xs" c="dimmed" visibleFrom="sm" w={84} ta="right" style={{ flexShrink: 0 }} title="Assumed: no vote on the item itself was recorded">
-            {outcome.label}
-          </Text>
-        )}
-        <IconChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0 }} />
+        </Stack>
+        <Box visibleFrom="sm" style={{ flexShrink: 0 }}>
+          {resultBadge}
+        </Box>
+        <IconChevronDown size={16} style={{ transform: open ? 'rotate(180deg)' : undefined, transition: 'transform 150ms', flexShrink: 0, marginTop: 6 }} />
       </Group>
       <Collapse expanded={open}>
-        {open && (
-          <Box px="md" pb="sm" pl={20}>
-            <Group justify="space-between" align="flex-start" wrap="nowrap" mb={6}>
-              <Text size="sm" fw={600} lh={1.35}>
-                <Text span ff="monospace" c="dimmed" fw={400}>
-                  {item.ref}
-                </Text>{' '}
-                {item.title}
-              </Text>
-              <Tooltip label="Open item in TMMIS" withArrow>
-                <ActionIcon component="a" href={tmmisUrl(item.ref)} target="_blank" rel="noreferrer" variant="subtle" color="gray" aria-label="Open in TMMIS">
-                  <IconExternalLink size={16} />
-                </ActionIcon>
-              </Tooltip>
-            </Group>
-            <Stack gap={4}>
-              {item.votes.map((v, i) => (
-                <VoteDetail key={i} vote={v} members={members} member={members[idx]} idx={idx} defaultOpen={item.votes.length === 1} />
-              ))}
-            </Stack>
-          </Box>
-        )}
+        {open && <ItemVotes item={item} members={data.members} who={data.members[idx]} motions={motions} unvoted={unvoted} />}
       </Collapse>
     </Box>
   )
@@ -189,6 +192,7 @@ function MeetingSection({
   data,
   open,
   onToggle,
+  onDetails,
 }: {
   meeting: Meeting
   bodyName: string
@@ -198,6 +202,7 @@ function MeetingSection({
   data: TermData
   open: boolean
   onToggle: () => void
+  onDetails: (t: DetailTarget) => void
 }) {
   const c = counts(all)
   const groups = useMemo(
@@ -231,20 +236,21 @@ function MeetingSection({
           {groups.map((g) => (
             <Box key={g.key}>
               {groups.length > 1 && (
-                <Group gap="xs" px="sm" py={6} wrap="nowrap" style={{ background: 'var(--mantine-color-default-hover)' }}>
-                  <Badge variant="filled" color="indigo" radius="sm" size="sm" tt="none">
+                <Group gap="xs" px="sm" pt="sm" pb={4} wrap="nowrap">
+                  <Badge variant="filled" color="indigo" radius="sm" tt="none" style={{ flexShrink: 0 }}>
                     {g.code}
                   </Badge>
-                  <Text size="sm" fw={600} truncate>
+                  <Text fw={700} truncate>
                     {codeName(g.code)}
                   </Text>
-                  <Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
-                    {g.items.length}
+                  <Text size="sm" c="dimmed" style={{ flexShrink: 0 }}>
+                    {g.items.length === 1 ? '1 item' : `${g.items.length} items`}
                   </Text>
+                  <Divider style={{ flex: 1 }} />
                 </Group>
               )}
               {g.items.map((it) => (
-                <ItemRow key={it.ref} row={byRef.get(it.ref)!} idx={idx} members={data.members} />
+                <ItemRow key={it.ref} row={byRef.get(it.ref)!} idx={idx} data={data} bodyName={bodyName} onDetails={onDetails} />
               ))}
             </Box>
           ))}
@@ -254,7 +260,7 @@ function MeetingSection({
   )
 }
 
-export function MemberRecord({ data, bodyName, onBodyChange }: { data: TermData; bodyName: string; onBodyChange: (b: string) => void }) {
+export function MemberRecord({ data, bodyName, onBodyChange, onDetails }: { data: TermData; bodyName: string; onBodyChange: (b: string) => void; onDetails: (t: DetailTarget) => void }) {
   const [member, setMember] = useState<string | null>(null)
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
@@ -406,6 +412,7 @@ export function MemberRecord({ data, bodyName, onBodyChange }: { data: TermData;
                 data={data}
                 open={isOpen(s.meeting.id, i)}
                 onToggle={() => toggle(s.meeting.id)}
+                onDetails={onDetails}
               />
             ))}
             {shownSections.length === 0 && (

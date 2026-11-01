@@ -258,7 +258,7 @@ export default function App() {
         <Box maw={960} mx="auto">
           {view === 'members' ? (
             data ? (
-              <MemberRecord key={term} data={data} bodyName={body?.name ?? bodyName} onBodyChange={setBodyName} />
+              <MemberRecord key={term} data={data} bodyName={body?.name ?? bodyName} onBodyChange={setBodyName} onDetails={setDetail} />
             ) : (
               <Center py={80}>
                 <Loader />
